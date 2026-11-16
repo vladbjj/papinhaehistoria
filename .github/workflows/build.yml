@@ -1,0 +1,52 @@
+name: Compilar App Papinhas (AAB e APK Oficial)
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Instalar Gradle Oficial
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      # Cria a keystore oficial permanente e exporta o certificado PEM
+      - name: Preparar Chave de Release
+        run: |
+          keytool -genkeypair -alias papinhaKey -keyalg RSA -keysize 2048 -validity 10000 -keystore app/release.keystore -storepass "MinhaChave123@" -keypass "MinhaChave123@" -dname "CN=PapinhaEHistoria, OU=App, O=GooglePlay, L=SP, ST=SP, C=BR"
+          keytool -exportcert -rfc -keystore app/release.keystore -alias papinhaKey -storepass "MinhaChave123@" -file upload_certificate.pem
+
+      - name: Gerar AAB Oficial (Play Store)
+        run: gradle bundleRelease --stacktrace
+
+      - name: Gerar APK (Para celular)
+        run: gradle assembleRelease --stacktrace
+
+      - name: Disponibilizar AAB e Certificado
+        uses: actions/upload-artifact@v4
+        with:
+          name: papinhas-sucos-aab-playstore
+          path: |
+            app/build/outputs/bundle/release/app-release.aab
+            upload_certificate.pem
+          retention-days: 14
+
+      - name: Disponibilizar APK (Celular)
+        uses: actions/upload-artifact@v4
+        with:
+          name: papinhas-sucos-apk-instalavel
+          path: app/build/outputs/apk/release/app-release.apk
+          retention-days: 14
