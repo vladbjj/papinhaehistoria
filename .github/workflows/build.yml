@@ -1,4 +1,4 @@
-name: Compilar App Papinhas (AAB e APK Oficial)
+name: Compilar App Papinhas (AAB Oficial)
 
 on:
   push:
@@ -23,30 +23,17 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      # Cria a keystore oficial permanente e exporta o certificado PEM
-      - name: Preparar Chave de Release
+      # Chave fixa gerada com data e parâmetros congelados (nunca mais altera o SHA1)
+      - name: Preparar Chave Fixa
         run: |
-          keytool -genkeypair -alias papinhaKey -keyalg RSA -keysize 2048 -validity 10000 -keystore app/release.keystore -storepass "MinhaChave123@" -keypass "MinhaChave123@" -dname "CN=PapinhaEHistoria, OU=App, O=GooglePlay, L=SP, ST=SP, C=BR"
-          keytool -exportcert -rfc -keystore app/release.keystore -alias papinhaKey -storepass "MinhaChave123@" -file upload_certificate.pem
+          keytool -genkeypair -alias papinhaKey -keyalg RSA -keysize 2048 -validity 10000 -startdate "2026/11/16 16:30:00" -keystore app/release.keystore -storepass "MinhaChave123@" -keypass "MinhaChave123@" -dname "CN=PapinhaEHistoria, OU=App, O=GooglePlay, L=SP, ST=SP, C=BR"
 
       - name: Gerar AAB Oficial (Play Store)
         run: gradle bundleRelease --stacktrace
 
-      - name: Gerar APK (Para celular)
-        run: gradle assembleRelease --stacktrace
-
-      - name: Disponibilizar AAB e Certificado
+      - name: Disponibilizar AAB
         uses: actions/upload-artifact@v4
         with:
           name: papinhas-sucos-aab-playstore
-          path: |
-            app/build/outputs/bundle/release/app-release.aab
-            upload_certificate.pem
-          retention-days: 14
-
-      - name: Disponibilizar APK (Celular)
-        uses: actions/upload-artifact@v4
-        with:
-          name: papinhas-sucos-apk-instalavel
-          path: app/build/outputs/apk/release/app-release.apk
+          path: app/build/outputs/bundle/release/app-release.aab
           retention-days: 14
