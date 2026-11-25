@@ -1,4 +1,4 @@
-package com.papinhaehistoria.app
+package com.papinhas.bebeapp
 
 import android.annotation.SuppressLint
 import android.os.Bundle
