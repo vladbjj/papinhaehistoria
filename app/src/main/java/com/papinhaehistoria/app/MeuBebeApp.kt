@@ -1,4 +1,4 @@
-package com.papinhaehistoria.app
+package com.papinhas.bebeapp
 
 import android.app.Application
 import com.google.android.gms.ads.MobileAds
