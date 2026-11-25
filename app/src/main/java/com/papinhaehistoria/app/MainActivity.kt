@@ -10,6 +10,9 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.FullScreenContentCallback
+import com.google.android.gms.ads.appopen.AppOpenAd
 import java.util.Locale
 
 class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
@@ -18,11 +21,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private var tts: TextToSpeech? = null
     private var isTtsReady = false
 
+    // Bloco oficial AdMob
+    private val adUnitId = "ca-app-pub-3016178863457047/8931527209"
+    private var appOpenAd: AppOpenAd? = null
+    private var isAdShownOnce = false
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Inicializa o sintetizador de voz nativo em portugues
+        // Inicializa o motor de fala
         tts = TextToSpeech(this, this)
 
         webView = WebView(this)
@@ -40,24 +48,67 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             mediaPlaybackRequiresUserGesture = false
         }
 
-        // Ponte JavaScript com Android Nativo
         webView.addJavascriptInterface(WebAppInterface(), "AndroidTTS")
-
         webView.webViewClient = WebViewClient()
         webView.webChromeClient = WebChromeClient()
 
         webView.loadUrl("file:///android_asset/index.html")
 
+        // Carrega o anúncio de abertura de forma não invasiva apenas na inicialização
+        carregarAnuncioAbertura()
+
+        // Tratamento limpo do botão Voltar (sem disparar anúncios ao sair)
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (webView.canGoBack()) {
                     webView.goBack()
                 } else {
                     isEnabled = false
-                    onBackPressedDispatcher.onBackPressed()
+                    finish() // Sai do app sem disparar anúncio
                 }
             }
         })
+    }
+
+    private fun carregarAnuncioAbertura() {
+        if (isAdShownOnce) return
+
+        val request = AdRequest.Builder().build()
+        AppOpenAd.load(
+            this,
+            adUnitId,
+            request,
+            object : AppOpenAd.AppOpenAdLoadCallback() {
+                override fun onAdLoaded(ad: AppOpenAd) {
+                    appOpenAd = ad
+                    if (!isFinishing && !isAdShownOnce) {
+                        exibirAnuncioAbertura()
+                    }
+                }
+
+                override fun onAdFailedToLoad(loadAdError: com.google.android.gms.ads.LoadAdError) {
+                    appOpenAd = null
+                }
+            }
+        )
+    }
+
+    private fun exibirAnuncioAbertura() {
+        appOpenAd?.fullScreenContentCallback = object : FullScreenContentCallback() {
+            override fun onAdDismissedFullScreenContent() {
+                appOpenAd = null
+                isAdShownOnce = true
+            }
+
+            override fun onAdFailedToShowFullScreenContent(adError: com.google.android.gms.ads.AdError) {
+                appOpenAd = null
+            }
+
+            override fun onAdShowedFullScreenContent() {
+                isAdShownOnce = true
+            }
+        }
+        appOpenAd?.show(this)
     }
 
     override fun onInit(status: Int) {
